@@ -40,6 +40,12 @@
 
 #include "ion_allocator_helper.h"
 
+// Detect the usage of the ION legacy API (kernel 4.9) by looking at the
+// availability of the ION_IOC_SHARE.
+#ifdef ION_IOC_SHARE
+#define ION_LEGACY_API
+#endif
+
 namespace media {
 
 // Constructor.
@@ -76,8 +82,10 @@ int IonAllocator::Allocate(size_t size, uint32_t heap_id)
 {
   int status = 0;
   struct ion_allocation_data alloc_data;
+#ifdef ION_LEGACY_API
   struct ion_handle_data hdl_data;
   struct ion_fd_data fd_data;
+#endif
 
   CDM_DLOG() << "Allocate " << size << " bytes from ION heap ID " << heap_id;
   
@@ -97,7 +105,9 @@ int IonAllocator::Allocate(size_t size, uint32_t heap_id)
   }
 
   alloc_data.len = size;
+#ifdef ION_LEGACY_API
   alloc_data.align = 0;
+#endif
   alloc_data.flags = 0;
   alloc_data.heap_id_mask = 1 << heap_id;
   if (ioctl(m_ionDeviceFd, ION_IOC_ALLOC, &alloc_data) == -1) {
@@ -105,6 +115,7 @@ int IonAllocator::Allocate(size_t size, uint32_t heap_id)
     return -1;
   }
 
+#ifdef ION_LEGACY_API
   fd_data.handle = alloc_data.handle;
   if (ioctl(m_ionDeviceFd, ION_IOC_SHARE, &fd_data) != -1) {
     m_ionFd = fd_data.fd;
@@ -117,7 +128,13 @@ int IonAllocator::Allocate(size_t size, uint32_t heap_id)
   
   hdl_data.handle = alloc_data.handle;
   (void)ioctl(m_ionDeviceFd, ION_IOC_FREE, &hdl_data);
-  
+#else
+  m_ionFd = alloc_data.fd;
+  m_ionSize = size;
+  m_mappedData = NULL;
+#endif
+
+
   return status;
 }
   
