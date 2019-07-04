@@ -83,6 +83,7 @@ private:
 
   std::string m_key_system;
   std::mutex  m_mtx;
+  std::mutex  m_decrypt_mtx;
   std::string m_message;
   std::string m_dest_url;
 

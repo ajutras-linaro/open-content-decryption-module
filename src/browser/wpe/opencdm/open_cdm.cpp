@@ -242,6 +242,8 @@ int OpenCdm::Close() {
 }
 
 int OpenCdm::ReleaseMem() {
+  std::unique_lock<std::mutex> lck(m_decrypt_mtx);
+
   if(media_engine_)
      return media_engine_->ReleaseMem();
 
@@ -253,6 +255,7 @@ int OpenCdm::Decrypt(unsigned char* encryptedData, uint32_t encryptedDataLength,
   int ret = 1;
   uint8_t *out = NULL;
   uint32_t out_size = 0;
+  std::unique_lock<std::mutex> lck(m_decrypt_mtx);
 
   CDM_DLOG() << "OpenCdm::Decrypt session_id : " << m_session_id.session_id << endl;
   CDM_DLOG() << "OpenCdm::Decrypt session_id_len : " << m_session_id.session_id_len << endl;
