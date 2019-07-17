@@ -152,7 +152,7 @@ DecryptResponse RpcCdmMediaengineHandler::Decrypt(const uint8_t *pbIv,
   uint32_t cbData,
   uint32_t *pdwSubSampleMapping,
   uint32_t cdwSubSampleMapping,
-  uint8_t *out, /* For non-SDP and SDP prototype, out is a pointer to a buffer
+  uint8_t *out, /* TODO - Update comment: For non-SDP and SDP prototype, out is a pointer to a buffer
                    where to decrypt the data. For SDP, out is a pointer to the
                    secure ION file descriptor. */
                 // TODO: Improve how the file descriptor is provided.
@@ -170,6 +170,7 @@ DecryptResponse RpcCdmMediaengineHandler::Decrypt(const uint8_t *pbIv,
   int status = 0;
   uint32_t secure_size = 0;
   int secure_fd = -1;
+  OutputInfo *pOutputInfo = NULL;
 #if OCDM_SDP_PROTOTYPE
   IonAllocator ionAlloc;
 #endif
@@ -178,12 +179,22 @@ DecryptResponse RpcCdmMediaengineHandler::Decrypt(const uint8_t *pbIv,
   // TODO(sph): real decryptresponse values need to
   // be written to sharedmem as well
 
-  if(out_size < cbData) {
+#if OCDM_SDP_END2END
+  /* AJ-TODO Check structure size and output data size. */
+   if(out_size != sizeof(OutputInfo)) {
+    CDM_DLOG() << "Invalid size for output information structure (received: "<< out_size << ", expected: " << sizeof(OutputInfo) << ").";
+    response.platform_response = PLATFORM_CALL_FAIL;
+    return response;
+  }   
+  pOutputInfo = (OutputInfo *)out;
+#else
+   if(out_size < cbData) {
     CDM_DLOG() << "Output buffer is too small (cbData: " << cbData << ", out_size: " << out_size << ").";
     response.platform_response = PLATFORM_CALL_FAIL;
     out_size = 0;
     return response;
-  }
+  } 
+#endif
 
   LockSemaphore(idXchngSem, SEM_XCHNG_PUSH);
   CDM_DLOG() << "LOCKed push lock";
@@ -217,8 +228,10 @@ DecryptResponse RpcCdmMediaengineHandler::Decrypt(const uint8_t *pbIv,
   }
 
 #if OCDM_SDP_END2END
-  secure_size = out_size;
-  secure_fd = *(int32_t *)out;
+  if(pOutputInfo->secure) {
+    secure_size = pOutputInfo->size;
+    secure_fd = pOutputInfo->secureFd;
+  }
 #elif OCDM_SDP_PROTOTYPE
   status = ionAlloc.Allocate(cbData, ION_SECURE_HEAP_ID_DECODER);
   if(status < 0) {
@@ -259,6 +272,10 @@ DecryptResponse RpcCdmMediaengineHandler::Decrypt(const uint8_t *pbIv,
     response.platform_response = PLATFORM_CALL_FAIL;
     goto handle_error;
   }
+#else /* OCDM_SDP_END2END */
+  if(!pOutputInfo->secure) {
+    memcpy(pOutputInfo->pSharedMemory, pSampleShMem, cbData);
+  }
 #endif
 
 #if OCDM_SDP_ANY
@@ -292,6 +309,7 @@ handle_error:
                << ": " << err;
   }
 
+// AJ-TODO Adjust!
   out_size = (response.platform_response == PLATFORM_CALL_SUCCESS) ? cbData : 0;
 
   return response;

@@ -51,5 +51,11 @@ const char kOpenCdmVersion[] = "1.0.0.0";
 #define OCDM_SDP_ANY       (OCDM_SDP_PROTOTYPE || OCDM_SDP_END2END)
 #define OCDM_SDP_DISABLED  (!OCDM_SDP_ANY)
 
+typedef struct _OutputInfo {
+  bool secure;
+  uint32_t size;
+  int secureFd; /* For secure */
+  uint8_t *pSharedMemory; /* For non-secure */
+} OutputInfo;
 
 #endif  // MEDIA_CDM_PPAPI_EXTERNAL_OPEN_CDM_COMMON_OPEN_CDM_COMMON_H_

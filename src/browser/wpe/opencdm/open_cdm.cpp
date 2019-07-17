@@ -257,6 +257,8 @@ int OpenCdm::Decrypt(unsigned char* encryptedData, uint32_t encryptedDataLength,
   uint32_t out_size = 0;
   std::unique_lock<std::mutex> lck(m_decrypt_mtx);
 
+  OutputInfo output_info;
+
   CDM_DLOG() << "OpenCdm::Decrypt session_id : " << m_session_id.session_id << endl;
   CDM_DLOG() << "OpenCdm::Decrypt session_id_len : " << m_session_id.session_id_len << endl;
   CDM_DLOG() << "OpenCdm::Decrypt encryptedDataLength : " << encryptedDataLength << endl;
@@ -275,8 +277,23 @@ int OpenCdm::Decrypt(unsigned char* encryptedData, uint32_t encryptedDataLength,
   CDM_DLOG() << "Returned back to OpenCdm::Decrypt";
 
 #if OCDM_SDP_END2END
-  out = (uint8_t *)&secureFd;
-  out_size = secureSize;
+  if(secureFd < 0) {
+    // Non-secure
+    output_info.secure = false;
+    output_info.size = encryptedDataLength;
+    output_info.secureFd = -1;
+    output_info.pSharedMemory = encryptedData; /* in-place decryption */
+
+  } else {
+    // Secure
+    output_info.secure = true;
+    output_info.size = secureSize;
+    output_info.secureFd = secureFd; /* decryption in secure ion buffer */
+    output_info.pSharedMemory = NULL;
+  }
+  
+  out = (uint8_t *)&output_info;
+  out_size = sizeof(output_info);
 #else
   out = encryptedData;
   out_size = encryptedDataLength;
