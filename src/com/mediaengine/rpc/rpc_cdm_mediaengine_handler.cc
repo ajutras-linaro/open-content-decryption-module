@@ -187,6 +187,13 @@ DecryptResponse RpcCdmMediaengineHandler::Decrypt(const uint8_t *pbIv,
     return response;
   }   
   pOutputInfo = (OutputInfo *)out;
+  
+  if(pOutputInfo->size < cbData) {
+    CDM_DLOG() << "Output buffer is too small (cbData: " << cbData << ", output size: " << pOutputInfo->size << ").";
+    response.platform_response = PLATFORM_CALL_FAIL;
+    out_size = 0;
+    return response;
+  } 
 #else
    if(out_size < cbData) {
     CDM_DLOG() << "Output buffer is too small (cbData: " << cbData << ", out_size: " << out_size << ").";

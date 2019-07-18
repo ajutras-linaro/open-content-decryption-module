@@ -131,6 +131,11 @@ int SocketClient::SendFileDescriptor(int f_FileDescriptor, uint32_t f_Size)
   cmsg->cmsg_type = SCM_RIGHTS;
   *(int *)CMSG_DATA(cmsg) = f_FileDescriptor;
 
+  if(f_FileDescriptor < 0) {
+    msg.msg_control = NULL;
+    msg.msg_controllen = 0;
+  }
+
   status = sendmsg(m_SocketFd, &msg, 0);
   if(status >= 0) {
     status = 0;  // Success
